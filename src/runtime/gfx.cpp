@@ -7,6 +7,10 @@
 #include "common/error.hpp"
 #include "common/sdl.hpp"
 
+#if defined(__APPLE__)
+#include <SDL_metal.h>    // SDL_Metal_CreateView / SDL_Metal_GetLayer -> CAMetalLayer*
+#endif
+
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
 namespace dino::runtime {
@@ -89,6 +93,9 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
 #if defined(RT64_SDL_WINDOW_VULKAN)
     flags |= SDL_WINDOW_VULKAN;
 #endif
+#if defined(__APPLE__)
+    flags |= SDL_WINDOW_METAL;
+#endif
 
     window = SDL_CreateWindow("Dinosaur Planet: Recompiled", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, flags);
 
@@ -112,6 +119,15 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
     return ultramodern::renderer::WindowHandle{ wmInfo.info.win.window, GetCurrentThreadId() };
 #elif defined(__linux__) || defined(__ANDROID__)
     return ultramodern::renderer::WindowHandle{ window };
+#elif defined(__APPLE__)
+    // ultramodern's WindowHandle is {NSWindow*, CAMetalLayer*} on Apple, and plume's
+    // Metal backend casts .view straight to CA::MetalLayer*. Passing the SDL_Window*
+    // here instead crashes in objc_msgSend as soon as the render thread starts.
+    SDL_MetalView metal_view = SDL_Metal_CreateView(window);
+    if (metal_view == nullptr) {
+        exit_error("Failed to create Metal view: %s\n", SDL_GetError());
+    }
+    return ultramodern::renderer::WindowHandle{ wmInfo.info.cocoa.window, SDL_Metal_GetLayer(metal_view) };
 #else
     static_assert(false && "Unimplemented");
 #endif

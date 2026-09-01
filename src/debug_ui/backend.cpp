@@ -90,7 +90,7 @@ bool is_open() { return b_is_open; }
 bool in_ui_frame() { return b_in_ui_frame; }
 
 void begin() {
-    if (!dino_imgui_ctx->Initialized) return;
+    if (dino_imgui_ctx == nullptr || !dino_imgui_ctx->Initialized) return;
 
     if (!b_is_open) {
         // Still process the event queue but don't send any to ImGui
@@ -351,7 +351,19 @@ static void rt64_deinit_hook() {
 }
 
 void set_render_hooks() {
+#if defined(__APPLE__)
+    // RT64 runs on Metal here, but this backend only implements the D3D12 and Vulkan ImGui
+    // paths, and get_graphics_api() reports Vulkan on Apple as a placeholder (see its
+    // "TODO: Add MoltenVK option for Mac?"). Registering the hooks therefore ran
+    // ImGui_ImplVulkan_Init against a Metal device: vkGetInstanceProcAddr is null without a
+    // Vulkan loader, so the Gfx Thread jumped to address 0 during RT64::Application::setup.
+    //
+    // Leave the debug overlay unregistered until it has a Metal backend. dino_imgui_ctx stays
+    // null, which is what debug_ui::is_open() and want_capture_keyboard() already expect.
+    return;
+#else
     dino::renderer::add_hook(rt64_init_hook, rt64_draw_hook, rt64_deinit_hook);
+#endif
 }
 
 }

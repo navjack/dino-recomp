@@ -15,6 +15,16 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
 endif()
 
+# rt64 forces HLSLPP_SCALAR on Apple Silicon, and hlslpp's scalar.h calls labs() without
+# including <stdlib.h>. Force-include it. The SHELL: prefix stops CMake de-duplicating the
+# repeated "-include" token if another one is added later, which would silently turn the
+# following header into a bare input file.
+if (APPLE)
+    add_compile_options("SHELL:-include stdlib.h")
+    # support_apple.mm supplies the Apple hooks declared in src/runtime/support.hpp.
+    enable_language(OBJCXX)
+endif()
+
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     option(RECOMP_FLATPAK "Configure the build for Flatpak compatibility." OFF)
 endif()
@@ -165,6 +175,10 @@ set (SOURCES_EXTRA
     ${CMAKE_SOURCE_DIR}/rsp/aspMain.cpp
     ${CMAKE_SOURCE_DIR}/lib/RmlUi/Backends/RmlUi_Platform_SDL.cpp
 )
+if (APPLE)
+    # The globs above only collect *.cpp, so the Objective-C++ file needs listing.
+    list (APPEND SOURCES_EXTRA ${CMAKE_SOURCE_DIR}/src/runtime/support_apple.mm)
+endif()
 
 target_include_directories(DinosaurPlanetRecompiled PRIVATE
     ${CMAKE_SOURCE_DIR}/src

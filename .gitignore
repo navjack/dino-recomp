@@ -64,3 +64,9 @@ recompcontrollerdb.txt
 
 # clangd cache
 .cache/
+
+# --- macOS port: build artifacts, ROMs and local machine state ---
+*.app/
+Dinosaur Planet ROM/
+*.rom
+/rom

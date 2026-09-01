@@ -1,12 +1,14 @@
 #include "config.hpp"
 
 #include <filesystem>
+#include <optional>
 #include <fstream>
 #include <iomanip>
 
 #include "ultramodern/config.hpp"
 #include "librecomp/files.hpp"
 
+#include "runtime/support.hpp"
 #include "input/input.hpp"
 #include "input/controls.hpp"
 
@@ -172,6 +174,15 @@ std::filesystem::path get_app_folder_path() {
 
    if (homedir != nullptr) {
        recomp_dir = std::filesystem::path{homedir} / (std::u8string{u8".config/"} + std::u8string{program_id});
+   }
+#elif defined(__APPLE__)
+   // There was no Apple branch here, so recomp_dir stayed empty and librecomp's config_path
+   // became "". That makes create_directories(config_path / "mods") a *relative* path: fine
+   // when launched from a writable build directory, but from /Applications the working
+   // directory is "/", so it tried to create /mods and the throwing overload aborted in
+   // initialize_mods() before the window ever opened.
+   if (std::optional<std::filesystem::path> app_support = dino::runtime::get_application_support_directory()) {
+       recomp_dir = *app_support / program_id;
    }
 #endif
 
